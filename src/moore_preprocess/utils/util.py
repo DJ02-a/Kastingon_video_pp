@@ -6,12 +6,13 @@ import sys
 from pathlib import Path
 
 import av
+import cv2
 import numpy as np
 import torch
 import torchvision
 from einops import rearrange
 from PIL import Image
-import cv2
+
 
 def seed_everything(seed):
     import random
@@ -119,34 +120,24 @@ def read_frames(video_path):
 
     return frames
 
+
 def read_frames_cv(video_path):
-    
+
     # container = av.open(video_path)
-    
+
     video_cap = cv2.VideoCapture(video_path)
     success, frame = video_cap.read()
     h, w, _ = frame.shape
-    
+
     frames = []
     f = 0
     while success:
-        
+
         success, frame = video_cap.read()
         # frames.append(Image.fromarray(frame))
         frames.append(frame)
         f += 1
-        
-    # video_stream = next(s for s in container.streams if s.type == "video")
-    # frames = []
-    # for packet in container.demux(video_stream):
-    #     for frame in packet.decode():
-    #         image = Image.frombytes(
-    #             "RGB",
-    #             (frame.width, frame.height),
-    #             frame.to_rgb().to_ndarray(),
-    #         )
-    #         frames.append(image)
-    
+
     return frames
 
 

@@ -1,11 +1,10 @@
 import concurrent.futures
 import os
 import random
-import sys
 from pathlib import Path
 
-from _src.dwpose import DWposeDetector
-from _src.utils.util import get_fps, read_frames_cv, save_videos_from_pil
+from moore_preprocess.dl_models.dwpose import DWposeDetector
+from moore_preprocess.utils.util import get_fps, read_frames_cv, save_videos_from_pil
 
 
 def process_single_video(
@@ -50,7 +49,6 @@ def process_single_video(
     else:
         interval = 1
         new_fps = int(round(fps))
-    # add parent directory to save frames name: /path/to/video_dataset/*/*.mp4 -> /path/to/video_dataset_frames/imgs/*/*.jpg
     img_path = os.path.join(save_dir, "imgs", relative_path)
     frames = frames[::interval]
     if save_frames:
@@ -89,12 +87,7 @@ def process_single_video(
 def process_batch_videos(
     video_list, detector, root_dir, save_dir, simple, smooth=False
 ):
-    # if simple:
-    #     print("Simple mode")
-    #     for i, video_path in enumerate(video_list):
-    #         print(f"Process {i}/{len(video_list)} video")
-    #         process_single_video_simple(video_path, detector, root_dir, save_dir)
-    # else:
+
     print("Normal mode")
     for i, video_path in enumerate(video_list):
         print(f"Process {i}/{len(video_list)} video")
