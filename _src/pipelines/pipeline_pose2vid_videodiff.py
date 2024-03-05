@@ -22,9 +22,9 @@ from einops import rearrange
 from tqdm import tqdm
 from transformers import CLIPImageProcessor
 
-from src.models.mutual_self_attention import ReferenceAttentionControl
-from src.pipelines.context import get_context_scheduler
-from src.pipelines.utils import get_tensor_interpolation_method
+from _src.models.mutual_self_attention import ReferenceAttentionControl
+from _src.pipelines.context import get_context_scheduler
+from _src.pipelines.utils import get_tensor_interpolation_method
 
 
 @dataclass
@@ -336,8 +336,7 @@ class Pose2VideoPipeline(DiffusionPipeline):
         new_index += 1
 
         return new_latents
-    
-    
+
     @torch.no_grad()
     def __call__(
         self,
@@ -361,6 +360,7 @@ class Pose2VideoPipeline(DiffusionPipeline):
         context_overlap=4,
         context_batch_size=1,
         interpolation_factor=1,
+        w_videodiff=0.5,
         **kwargs,
     ):
         # Default height and width to unet
@@ -374,7 +374,7 @@ class Pose2VideoPipeline(DiffusionPipeline):
         # Prepare timesteps
         self.scheduler.set_timesteps(num_inference_steps, device=device)
         timesteps = self.scheduler.timesteps
-        print('timesteps:', timesteps)
+        print("timesteps:", timesteps)
         batch_size = 1
 
         # Prepare clip image embeds
@@ -448,21 +448,19 @@ class Pose2VideoPipeline(DiffusionPipeline):
 
         context_scheduler = get_context_scheduler(context_schedule)
 
-        #NOTE: Prepare prompt embeddings
+        # NOTE: Prepare prompt embeddings
 
-        
         prompt_embeds = self._encode_prompt(
-                '', # null prompt
-                device,
-                num_images_per_prompt,
-                do_classifier_free_guidance,
-                ''
-            )
-
+            "",  # null prompt
+            device,
+            num_images_per_prompt,
+            do_classifier_free_guidance,
+            "",
+        )
 
         # denoising loop
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
-        print('num_warmup_steps:', num_warmup_steps)
+        print("num_warmup_steps:", num_warmup_steps)
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
                 noise_pred = torch.zeros(
@@ -546,8 +544,8 @@ class Pose2VideoPipeline(DiffusionPipeline):
                         pose_cond_fea=latent_pose_input,
                         return_dict=False,
                     )[0]
-                    
-                    #TODO: implement code for applying video diffusion prior
+
+                    # TODO: implement code for applying video diffusion prior
                     # pred_vid : (b, c, f, h, w)
                     noise_pred_vid = self.video_unet(
                         latent_model_input,
@@ -559,8 +557,10 @@ class Pose2VideoPipeline(DiffusionPipeline):
                     # print('pred shape:', pred.dtype, 'noise_pred_vid shape:', noise_pred_vid.dtype)
                     for j, c in enumerate(context):
                         # noise_pred[:, :, c] = noise_pred[:, :, c] + pred
-                        #TODO: add noise_pred_vid to noise_pred (may be we need to reshape?)
-                        noise_pred[:, :, c] = noise_pred[:, :, c] + pred + 1.0 * noise_pred_vid
+                        # TODO: add noise_pred_vid to noise_pred (may be we need to reshape?)
+                        noise_pred[:, :, c] = (
+                            noise_pred[:, :, c] + pred + w_videodiff * noise_pred_vid
+                        )
                         counter[:, :, c] = counter[:, :, c] + 1
 
                 # perform guidance

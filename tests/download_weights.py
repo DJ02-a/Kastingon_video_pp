@@ -5,7 +5,7 @@ from huggingface_hub import hf_hub_download
 
 
 def prepare_base_model():
-    print(f'Preparing base stable-diffusion-v1-5 weights...')
+    print(f"Preparing base stable-diffusion-v1-5 weights...")
     local_dir = "./pretrained_weights/stable-diffusion-v1-5"
     os.makedirs(local_dir, exist_ok=True)
     for hub_file in ["unet/config.json", "unet/diffusion_pytorch_model.bin"]:
@@ -102,10 +102,10 @@ def prepare_anyone():
             local_dir=local_dir,
         )
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     prepare_base_model()
     prepare_image_encoder()
     prepare_dwpose()
     prepare_vae()
     prepare_anyone()
-    

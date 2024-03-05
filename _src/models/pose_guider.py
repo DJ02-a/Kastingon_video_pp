@@ -5,8 +5,8 @@ import torch.nn.functional as F
 import torch.nn.init as init
 from diffusers.models.modeling_utils import ModelMixin
 
-from src.models.motion_module import zero_module
-from src.models.resnet import InflatedConv3d
+from _src.models.motion_module import zero_module
+from _src.models.resnet import InflatedConv3d
 
 
 class PoseGuider(ModelMixin):
@@ -55,7 +55,6 @@ class PoseGuider(ModelMixin):
         embedding = self.conv_out(embedding)
 
         return embedding
-
 
 
 class SimplePoseGuider(ModelMixin):

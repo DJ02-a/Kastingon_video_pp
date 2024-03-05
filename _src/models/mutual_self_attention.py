@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional
 import torch
 from einops import rearrange
 
-from src.models.attention import TemporalBasicTransformerBlock
+from _src.models.attention import TemporalBasicTransformerBlock
 
 from .attention import BasicTransformerBlock
 
@@ -127,9 +127,9 @@ class ReferenceAttentionControl:
             if self.only_cross_attention:
                 attn_output = self.attn1(
                     norm_hidden_states,
-                    encoder_hidden_states=encoder_hidden_states
-                    if self.only_cross_attention
-                    else None,
+                    encoder_hidden_states=(
+                        encoder_hidden_states if self.only_cross_attention else None
+                    ),
                     attention_mask=attention_mask,
                     **cross_attention_kwargs,
                 )
@@ -138,9 +138,9 @@ class ReferenceAttentionControl:
                     self.bank.append(norm_hidden_states.clone())
                     attn_output = self.attn1(
                         norm_hidden_states,
-                        encoder_hidden_states=encoder_hidden_states
-                        if self.only_cross_attention
-                        else None,
+                        encoder_hidden_states=(
+                            encoder_hidden_states if self.only_cross_attention else None
+                        ),
                         attention_mask=attention_mask,
                         **cross_attention_kwargs,
                     )
