@@ -22,18 +22,19 @@ def process_single_video(
     args,
     save_dir,
 ):
+    folder_name = video_path.split("/")[-2]
     video_name = os.path.basename(video_path).split(".")[0]
-    workspace_dir = os.path.join(save_dir, video_name)
+    if folder_name != "video":
+        workspace_dir = os.path.join(save_dir, f"{folder_name}_{video_name}")
+        dataset_folder_name = f"{folder_name}/{video_name}"
+    else:
+        workspace_dir = os.path.join(save_dir, video_name)
+        dataset_folder_name = f"{video_name}"
     frame_path = os.path.join(workspace_dir, "frames")
     openpose_path = os.path.join(workspace_dir, "dwpose")
     simple_name = "simple"
     simple_openpose_path = os.path.join(workspace_dir, f"dwpose_{simple_name}")
     video_save_path = os.path.join(workspace_dir, "videos")
-    folder_name = video_path.split("/")[-2]
-    if folder_name != "video":
-        dataset_folder_name = f"{folder_name}/{video_name}"
-    else:
-        dataset_folder_name = f"{video_name}"
     os.makedirs(frame_path, exist_ok=True)
     os.makedirs(openpose_path, exist_ok=True)
     os.makedirs(simple_openpose_path, exist_ok=True)
