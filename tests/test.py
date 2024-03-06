@@ -104,7 +104,7 @@ def process_single_video(
 
     print("PROCESS : DWPOSE")
     if not args.smooth:
-        for i, frame in tqdm(enumerate(frames)):
+        for i, frame in tqdm(enumerate(matte_frames)):
             result, result_sp, _, _ = detector(
                 frame,
                 simple=args.simple,
@@ -121,7 +121,7 @@ def process_single_video(
 
     else:
         result, result_sp, _ = detector.get_batched_pose(
-            frames,
+            matte_frames,
             simple=args.simple,
             smooth=args.smooth,
             sp_draw_hand=args.sp_draw_hand,
@@ -185,14 +185,15 @@ if __name__ == "__main__":
         type=str,
         default="./assets/dataset",
     )
-    parser.add_argument("--smooth", default=False)
+    parser.add_argument("--smooth", default=True)
     parser.add_argument("--simple", default=True)
-    parser.add_argument("--num_workers", type=int, default=4, help="Num workers")
-    parser.add_argument("--sp_wo_hand_kpts", default=True)
-    parser.add_argument("--sp_draw_hand", default=True)
-    parser.add_argument("--sp_draw_face", default=False)
+    parser.add_argument("--num_workers", type=int, default=2, help="Num workers")
     parser.add_argument("--matte_video", default=True)
     parser.add_argument("--remove_legacy", default=True)
+
+    parser.add_argument("--sp_wo_hand_kpts", default=True)
+    parser.add_argument("--sp_draw_hand", default=True)
+    parser.add_argument("--sp_draw_face", default=True)
     args = parser.parse_args()
 
     save_dir = args.save_dir
