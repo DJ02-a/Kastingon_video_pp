@@ -3,10 +3,12 @@ from pathlib import Path, PurePosixPath
 
 from huggingface_hub import hf_hub_download
 
+from moore_preprocess import CKPT_DIR
+
 
 def prepare_base_model():
     print(f"Preparing base stable-diffusion-v1-5 weights...")
-    local_dir = "./pretrained_weights/stable-diffusion-v1-5"
+    local_dir = CKPT_DIR / "stable-diffusion-v1-5"
     os.makedirs(local_dir, exist_ok=True)
     for hub_file in ["unet/config.json", "unet/diffusion_pytorch_model.bin"]:
         path = Path(hub_file)
@@ -23,7 +25,7 @@ def prepare_base_model():
 
 def prepare_image_encoder():
     print(f"Preparing image encoder weights...")
-    local_dir = "./pretrained_weights"
+    local_dir = CKPT_DIR
     os.makedirs(local_dir, exist_ok=True)
     for hub_file in ["image_encoder/config.json", "image_encoder/pytorch_model.bin"]:
         path = Path(hub_file)
@@ -40,7 +42,7 @@ def prepare_image_encoder():
 
 def prepare_dwpose():
     print(f"Preparing DWPose weights...")
-    local_dir = "./pretrained_weights/DWPose"
+    local_dir = CKPT_DIR / "DWPose"
     os.makedirs(local_dir, exist_ok=True)
     for hub_file in [
         "dw-ll_ucoco_384.onnx",
@@ -61,7 +63,7 @@ def prepare_dwpose():
 
 def prepare_vae():
     print(f"Preparing vae weights...")
-    local_dir = "./pretrained_weights/sd-vae-ft-mse"
+    local_dir = CKPT_DIR / "sd-vae-ft-mse"
     os.makedirs(local_dir, exist_ok=True)
     for hub_file in [
         "config.json",
@@ -82,7 +84,7 @@ def prepare_vae():
 
 def prepare_anyone():
     print(f"Preparing AnimateAnyone weights...")
-    local_dir = "./pretrained_weights"
+    local_dir = CKPT_DIR
     os.makedirs(local_dir, exist_ok=True)
     for hub_file in [
         "denoising_unet.pth",

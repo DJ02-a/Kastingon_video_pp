@@ -29,13 +29,19 @@ def process_single_video(
     simple_name = "simple"
     simple_openpose_path = os.path.join(workspace_dir, f"dwpose_{simple_name}")
     video_save_path = os.path.join(workspace_dir, "videos")
-
+    folder_name = video_path.split("/")[-2]
+    if folder_name != "video":
+        dataset_folder_name = f"{folder_name}/{video_name}"
+    else:
+        dataset_folder_name = f"{video_name}"
     os.makedirs(frame_path, exist_ok=True)
     os.makedirs(openpose_path, exist_ok=True)
     os.makedirs(simple_openpose_path, exist_ok=True)
     os.makedirs(video_save_path, exist_ok=True)
 
-    if os.path.exists(os.path.join(video_save_path, "origin.mp4")):
+    if os.path.exists(
+        os.path.join(args.dataset_dir, dataset_folder_name, "origin.mp4")
+    ):
         return
 
     fps = get_fps(video_path)
@@ -139,6 +145,13 @@ def process_single_video(
         fps=new_fps,
     )
     shutil.copy(video_path, os.path.join(video_save_path, "origin.mp4"))
+    shutil.copytree(
+        video_save_path,
+        os.path.join(args.dataset_dir, f"{dataset_folder_name}"),
+        dirs_exist_ok=True,
+    )
+    if args.remove_legacy:
+        shutil.rmtree(workspace_dir)
 
 
 def process_batch_videos(video_list, detector, videomatter, args, root_dir):
@@ -167,6 +180,11 @@ if __name__ == "__main__":
         default="./assets/output",
         help="Path to save extracted pose videos",
     )
+    parser.add_argument(
+        "--dataset_dir",
+        type=str,
+        default="./assets/dataset",
+    )
     parser.add_argument("--smooth", default=False)
     parser.add_argument("--simple", default=True)
     parser.add_argument("--num_workers", type=int, default=4, help="Num workers")
@@ -174,6 +192,7 @@ if __name__ == "__main__":
     parser.add_argument("--sp_draw_hand", default=True)
     parser.add_argument("--sp_draw_face", default=False)
     parser.add_argument("--matte_video", default=True)
+    parser.add_argument("--remove_legacy", default=True)
     args = parser.parse_args()
 
     save_dir = args.save_dir
