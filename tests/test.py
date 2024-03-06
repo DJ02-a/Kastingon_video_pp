@@ -1,46 +1,51 @@
 import concurrent.futures
+import glob
 import os
 import random
+import shutil
 from pathlib import Path
 
+import cv2
+import numpy as np
+from PIL import Image
+from tqdm import tqdm
+
 from moore_preprocess.dl_models.dwpose import DWposeDetector
+from moore_preprocess.dl_models.VideoMatting import RobudstVideoMatting
 from moore_preprocess.utils.util import get_fps, read_frames_cv, save_videos_from_pil
 
 
 def process_single_video(
-    video_path, detector, root_dir, save_dir, save_frames=True, smooth_pose=False
+    video_path,
+    detector,
+    matter,
+    args,
+    save_dir,
 ):
-    relative_path = os.path.relpath(video_path, root_dir)
-    out_path = os.path.join(save_dir, relative_path)
-    out_path_sp = os.path.join(save_dir + "_simple", relative_path)
-    if os.path.exists(out_path):
-        return
+    video_name = os.path.basename(video_path).split(".")[0]
+    workspace_dir = os.path.join(save_dir, video_name)
+    frame_path = os.path.join(workspace_dir, "frames")
+    openpose_path = os.path.join(workspace_dir, "dwpose")
+    simple_name = "simple"
+    simple_openpose_path = os.path.join(workspace_dir, f"dwpose_{simple_name}")
+    video_save_path = os.path.join(workspace_dir, "videos")
 
-    output_dir = Path(os.path.dirname(os.path.join(save_dir, relative_path)))
-    output_dir_sp = Path(
-        os.path.dirname(os.path.join(save_dir + "_simple", relative_path))
-    )
-    if not output_dir.exists():
-        output_dir.mkdir(parents=True, exist_ok=True)
-        output_dir_sp.mkdir(parents=True, exist_ok=True)
+    os.makedirs(frame_path, exist_ok=True)
+    os.makedirs(openpose_path, exist_ok=True)
+    os.makedirs(simple_openpose_path, exist_ok=True)
+    os.makedirs(video_save_path, exist_ok=True)
+
+    if os.path.exists(os.path.join(video_save_path, "origin.mp4")):
+        return
 
     fps = get_fps(video_path)
 
     frames = read_frames_cv(video_path)
 
-    print(
-        "INFO:",
-        relative_path,
-        video_path,
-        root_dir,
-        "fps:",
-        fps,
-        "num_frames:",
-        len(frames),
-    )
+    print("INFO:", video_name, "fps:", fps, "num_frames:", len(frames))
+
     kps_results = []
     kps_results_sp = []
-
     # if fps>40, then we can skip some frames
     if fps > 40:
         interval = 2
@@ -49,51 +54,98 @@ def process_single_video(
     else:
         interval = 1
         new_fps = int(round(fps))
-    img_path = os.path.join(save_dir, "imgs", relative_path)
-    frames = frames[::interval]
-    if save_frames:
-        os.makedirs(img_path.replace(".mp4", "_frames"), exist_ok=True)
-        os.makedirs(img_path.replace(".mp4", "_dwpose"), exist_ok=True)
-    frames = frames[:-1]
 
-    if not smooth_pose:
-        for i, frame_pil in enumerate(frames):
-            # print(frame_pil.shape)
-            result, _, result_sp, input_img = detector(frame_pil)
-            # score = np.mean(score, axis=-1)
+    frames = frames[::interval][:-1]
+    os.makedirs(frame_path, exist_ok=True)
+    print("PROCESS : SAVE FRAMES")
+    for i, origin_frame in tqdm(enumerate(frames)):
+        cv2.imwrite(os.path.join(frame_path, f"{i:05d}.jpg"), origin_frame)
+
+    if args.matte_video:
+        print("PROCESS : VIDEO MATTING")
+
+        matte_frame_path = os.path.join(workspace_dir, "matte_frames")
+        os.makedirs(matte_frame_path, exist_ok=True)
+        matte_path = os.path.join(workspace_dir, "matte")
+        os.makedirs(matte_path, exist_ok=True)
+
+        matter(
+            frame_path,
+            output_type="png_sequence",
+            output_alpha=matte_path,
+            downsample_ratio=None,
+            seq_chunk=12,
+            num_workers=4,
+        )
+        matte_frames = []
+        alpha_paths = sorted(glob.glob(matte_path + "/*.jpg"))
+        for frame, alpha_path in zip(frames, alpha_paths):
+            file_name = os.path.basename(alpha_path).split(".")[0]
+            alpha = cv2.imread(alpha_path) / 255
+            matte_frame = frame * alpha
+            cv2.imwrite(
+                os.path.join(matte_frame_path, str(file_name).zfill(5) + ".png"),
+                matte_frame,
+            )
+            matte_frames.append(
+                Image.fromarray(matte_frame[:, :, ::-1].astype(np.uint8))
+            )
+        save_videos_from_pil(
+            matte_frames,
+            os.path.join(video_save_path, "matte_video.mp4"),
+            fps=new_fps,
+        )
+
+    print("PROCESS : DWPOSE")
+    if not args.smooth:
+        for i, frame in tqdm(enumerate(frames)):
+            result, result_sp, _, _ = detector(
+                frame,
+                simple=args.simple,
+                sp_draw_hand=args.sp_draw_hand,
+                sp_draw_face=args.sp_draw_face,
+                sp_wo_hand_kpts=args.sp_wo_hand_kpts,
+            )
 
             kps_results.append(result)
             kps_results_sp.append(result_sp)
 
-            input_img.save(
-                os.path.join(img_path.replace(".mp4", "_frames"), f"{i:05d}.jpg")
-            )
-            result_sp.save(
-                os.path.join(img_path.replace(".mp4", "_dwpose"), f"{i:05d}.jpg")
-            )
+            result.save(os.path.join(openpose_path, f"{i:05d}.jpg"))
+            result_sp.save(os.path.join(simple_openpose_path, f"{i:05d}.jpg"))
 
     else:
-        result, result_sp, input_img = detector.get_batched_pose(frames, smooth=True)
-        for i, (r, r_sp, img) in enumerate(zip(result, result_sp, input_img)):
+        result, result_sp, _ = detector.get_batched_pose(
+            frames,
+            simple=args.simple,
+            smooth=args.smooth,
+            sp_draw_hand=args.sp_draw_hand,
+            sp_draw_face=args.sp_draw_face,
+            sp_wo_hand_kpts=args.sp_wo_hand_kpts,
+        )
+        for i, (r, r_sp) in enumerate(zip(result, result_sp)):
             kps_results.append(r)
             kps_results_sp.append(r_sp)
-            img.save(os.path.join(img_path.replace(".mp4", "_frames"), f"{i:05d}.jpg"))
-            r_sp.save(os.path.join(img_path.replace(".mp4", "_dwpose"), f"{i:05d}.jpg"))
+            r.save(os.path.join(openpose_path, f"{i:05d}.jpg"))
+            r_sp.save(os.path.join(simple_openpose_path), f"{i:05d}.jpg")
 
-    save_videos_from_pil(kps_results, out_path, fps=new_fps)
-    save_videos_from_pil(kps_results_sp, out_path_sp, fps=new_fps)
+    save_videos_from_pil(
+        kps_results,
+        os.path.join(video_save_path, "openpose_full.mp4"),
+        fps=new_fps,
+    )
+    save_videos_from_pil(
+        kps_results_sp,
+        os.path.join(video_save_path, "openpose_simple.mp4"),
+        fps=new_fps,
+    )
+    shutil.copy(video_path, os.path.join(video_save_path, "origin.mp4"))
 
 
-def process_batch_videos(
-    video_list, detector, root_dir, save_dir, simple, smooth=False
-):
-
+def process_batch_videos(video_list, detector, videomatter, args, root_dir):
     print("Normal mode")
     for i, video_path in enumerate(video_list):
         print(f"Process {i}/{len(video_list)} video")
-        process_single_video(
-            video_path, detector, root_dir, save_dir, smooth_pose=smooth
-        )
+        process_single_video(video_path, detector, videomatter, args, root_dir)
 
 
 if __name__ == "__main__":
@@ -115,20 +167,16 @@ if __name__ == "__main__":
         default="./assets/output",
         help="Path to save extracted pose videos",
     )
-    parser.add_argument("--simple", action="store_true")
-    parser.add_argument("--smooth", action="store_true")
-    parser.add_argument("-j", type=int, default=4, help="Num workers")
-
+    parser.add_argument("--smooth", default=False)
+    parser.add_argument("--simple", default=True)
+    parser.add_argument("--num_workers", type=int, default=4, help="Num workers")
+    parser.add_argument("--sp_wo_hand_kpts", default=True)
+    parser.add_argument("--sp_draw_hand", default=True)
+    parser.add_argument("--sp_draw_face", default=False)
+    parser.add_argument("--matte_video", default=True)
     args = parser.parse_args()
-    num_workers = args.j
-    if args.save_dir is None:
-        save_dir = args.video_root + "_dwpose"
-        if args.simple:
-            save_dir += "_simple"
-            if not os.path.exists(save_dir):
-                os.makedirs(save_dir)
-    else:
-        save_dir = args.save_dir
+
+    save_dir = args.save_dir
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     cuda_visible_devices = os.environ.get("CUDA_VISIBLE_DEVICES", "0")
@@ -145,7 +193,7 @@ if __name__ == "__main__":
     random.shuffle(video_mp4_paths)
 
     # split into chunks,
-    batch_size = (len(video_mp4_paths) + num_workers - 1) // num_workers
+    batch_size = (len(video_mp4_paths) + args.num_workers - 1) // args.num_workers
     print(f"Num videos: {len(video_mp4_paths)} {batch_size = }")
     video_chunks = [
         video_mp4_paths[i : i + batch_size]
@@ -157,7 +205,10 @@ if __name__ == "__main__":
         for i, chunk in enumerate(video_chunks):
             # init detector
             gpu_id = gpu_ids[i % len(gpu_ids)]
+
+            videomatter = RobudstVideoMatting()
             detector = DWposeDetector()
+
             # torch.cuda.set_device(gpu_id)
             detector = detector.to(f"cuda:{gpu_id}")
 
@@ -166,10 +217,9 @@ if __name__ == "__main__":
                     process_batch_videos,
                     chunk,
                     detector,
-                    args.video_root,
+                    videomatter,
+                    args,
                     save_dir,
-                    args.simple,
-                    args.smooth,
                 )
             )
         for future in concurrent.futures.as_completed(futures):

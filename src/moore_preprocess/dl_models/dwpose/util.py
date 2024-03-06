@@ -161,38 +161,37 @@ def draw_handpose(canvas, all_hand_peaks, wo_kpts=False):
     H, W, C = canvas.shape
 
     edges = [
-        [0, 1], # thumb finger
+        [0, 1],  # thumb finger
         [1, 2],
         [2, 3],
         [3, 4],
-        [0, 5], # index finger
+        [0, 5],  # index finger
         [5, 6],
         [6, 7],
         [7, 8],
-        [0, 9], # middle finger
+        [0, 9],  # middle finger
         [9, 10],
         [10, 11],
         [11, 12],
-        [0, 13], # ring finger
+        [0, 13],  # ring finger
         [13, 14],
         [14, 15],
         [15, 16],
-        [0, 17], # pinky finger
+        [0, 17],  # pinky finger
         [17, 18],
         [18, 19],
         [19, 20],
     ]
     # only draw the first 3 fingers
     # skip_ie = range(12, 20)
-    
+
     for peaks in all_hand_peaks:
         peaks = np.array(peaks)
 
         for ie, e in enumerate(edges):
-            
             # if ie in skip_ie:
             #     continue
-            
+
             x1, y1 = peaks[e[0]]
             x2, y2 = peaks[e[1]]
             x1 = int(x1 * W)
@@ -208,7 +207,7 @@ def draw_handpose(canvas, all_hand_peaks, wo_kpts=False):
                     * 255,
                     thickness=2,
                 )
-        if not wo_kpts: 
+        if not wo_kpts:
             for i, keyponit in enumerate(peaks):
                 x, y = keyponit
                 x = int(x * W)
@@ -220,15 +219,15 @@ def draw_handpose(canvas, all_hand_peaks, wo_kpts=False):
         y = peaks[:, 1]
         x = x[x > eps]
         y = y[y > eps]
-        
+
         # if len(x) > 0 and len(y) > 0:
         #     x1, x2 = int(x.min() * W), int(x.max() * W)
         #     y1, y2 = int(y.min() * H), int(y.max() * H)
         #     cv2.rectangle(canvas, (x1, y1), (x2, y2), (0, 255, 0), 2)
-        
-        # with margin * 1.2 
-        
-        ## NOTE: drawing bbox 
+
+        # with margin * 1.2
+
+        ## NOTE: drawing bbox
         # if len(x) > 0 and len(y) > 0:
         #     x1, x2 = int(x.min() * W), int(x.max() * W)
         #     y1, y2 = int(y.min() * H), int(y.max() * H)
@@ -239,7 +238,7 @@ def draw_handpose(canvas, all_hand_peaks, wo_kpts=False):
         #     y1 = max(0, y1 - h * margin)
         #     y2 = min(H, y2 + h * margin)
         #     cv2.rectangle(canvas, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
-    
+
     return canvas
 
 
@@ -283,13 +282,15 @@ def handDetect_original(candidate, subset, oriImg):
             right_shoulder_index, right_elbow_index, right_wrist_index = person[
                 [2, 3, 4]
             ]
-            print('candidate 2,3,4: ', candidate[0, 2],candidate[0, 3],candidate[0, 4])
+            print(
+                "candidate 2,3,4: ", candidate[0, 2], candidate[0, 3], candidate[0, 4]
+            )
             x1, y1 = candidate[right_shoulder_index][:2]
             x2, y2 = candidate[right_elbow_index][:2]
             x3, y3 = candidate[right_wrist_index][:2]
             hands.append([x1, y1, x2, y2, x3, y3, False])
             # print( 'hands<<<<<<' , hands)
-        # for x1, y1, x2, y2, x3, y3, is_left in hands:
+            # for x1, y1, x2, y2, x3, y3, is_left in hands:
             # pos_hand = pos_wrist + ratio * (pos_wrist - pos_elbox) = (1 + ratio) * pos_wrist - ratio * pos_elbox
             # handRectangle.x = posePtr[wrist*3] + ratioWristElbow * (posePtr[wrist*3] - posePtr[elbow*3]);
             # handRectangle.y = posePtr[wrist*3+1] + ratioWristElbow * (posePtr[wrist*3+1] - posePtr[elbow*3+1]);
@@ -299,11 +300,11 @@ def handDetect_original(candidate, subset, oriImg):
             x = x3 + ratioWristElbow * (x3 - x2)
             y = y3 + ratioWristElbow * (y3 - y2)
             # print(candidate[right_wrist_index][:2])
-            
+
             # print(x3, x2, y3, y2, x1, y1)
-            print(x1,y1)
-            print(x2,y2)
-            print(x3,y3)
+            print(x1, y1)
+            print(x2, y2)
+            print(x3, y3)
             distanceWristElbow = math.sqrt((x3 - x2) ** 2 + (y3 - y2) ** 2)
             distanceElbowShoulder = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
             width = 1.5 * max(distanceWristElbow, 0.9 * distanceElbowShoulder)
@@ -327,7 +328,6 @@ def handDetect_original(candidate, subset, oriImg):
             # the max hand box value is 20 pixels
             if width >= 20:
                 detect_result.append([int(x), int(y), int(width), is_left])
-            
 
     """
     return value: [[x, y, w, True if left hand else False]].
@@ -355,22 +355,22 @@ def handDetect(candidate, subset, oriImg):
         # left hand
         if has_left:
             left_shoulder_index, left_elbow_index, left_wrist_index = person[[5, 6, 7]]
-            x1, y1 = candidate[0, 5] #candidate[left_shoulder_index][:2]
-            x2, y2 = candidate[0, 6] #candidate[left_elbow_index][:2]
-            x3, y3 = candidate[0, 7] #candidate[left_wrist_index][:2]
+            x1, y1 = candidate[0, 5]  # candidate[left_shoulder_index][:2]
+            x2, y2 = candidate[0, 6]  # candidate[left_elbow_index][:2]
+            x3, y3 = candidate[0, 7]  # candidate[left_wrist_index][:2]
             hands.append([x1, y1, x2, y2, x3, y3, True])
         # right hand
         if has_right:
             right_shoulder_index, right_elbow_index, right_wrist_index = person[
                 [2, 3, 4]
             ]
-            #print('candidate 2,3,4: ', candidate[0, 2],candidate[0, 3],candidate[0, 4])
-            x1, y1 = candidate[0, 2] #candidate[right_shoulder_index][:2]
-            x2, y2 = candidate[0, 3] #candidate[right_elbow_index][:2]
-            x3, y3 = candidate[0, 4] #candidate[right_wrist_index][:2]
+            # print('candidate 2,3,4: ', candidate[0, 2],candidate[0, 3],candidate[0, 4])
+            x1, y1 = candidate[0, 2]  # candidate[right_shoulder_index][:2]
+            x2, y2 = candidate[0, 3]  # candidate[right_elbow_index][:2]
+            x3, y3 = candidate[0, 4]  # candidate[right_wrist_index][:2]
             hands.append([x1, y1, x2, y2, x3, y3, False])
             # print( 'hands<<<<<<' , hands)
-        # for x1, y1, x2, y2, x3, y3, is_left in hands:
+            # for x1, y1, x2, y2, x3, y3, is_left in hands:
             # pos_hand = pos_wrist + ratio * (pos_wrist - pos_elbox) = (1 + ratio) * pos_wrist - ratio * pos_elbox
             # handRectangle.x = posePtr[wrist*3] + ratioWristElbow * (posePtr[wrist*3] - posePtr[elbow*3]);
             # handRectangle.y = posePtr[wrist*3+1] + ratioWristElbow * (posePtr[wrist*3+1] - posePtr[elbow*3+1]);
@@ -380,7 +380,7 @@ def handDetect(candidate, subset, oriImg):
             x = x3 + ratioWristElbow * (x3 - x2)
             y = y3 + ratioWristElbow * (y3 - y2)
             # print(candidate[right_wrist_index][:2])
-            
+
             distanceWristElbow = math.sqrt((x3 - x2) ** 2 + (y3 - y2) ** 2)
             distanceElbowShoulder = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
             width = 1.5 * max(distanceWristElbow, 0.9 * distanceElbowShoulder)
@@ -402,10 +402,9 @@ def handDetect(candidate, subset, oriImg):
                 width2 = image_height - y
             width = min(width1, width2)
             # the max hand box value is 20 pixels
-            
+
             # if width >= 20:
             detect_result.append([int(x), int(y), int(width)])
-            
 
     """
     return value: [[x, y, w, True if left hand else False]].
@@ -413,8 +412,6 @@ def handDetect(candidate, subset, oriImg):
     x, y is the coordinate of top left 
     """
     return detect_result
-
-
 
 
 # Written by Lvmin

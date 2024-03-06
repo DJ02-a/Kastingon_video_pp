@@ -5,10 +5,10 @@ import cv2
 import numpy as np
 import onnxruntime as ort
 
+from moore_preprocess import CKPT_DIR
+
 from .onnxdet import inference_detector
 from .onnxpose import inference_pose
-
-ModelDataPathPrefix = Path("./pretrained_weights")
 
 
 class Wholebody:
@@ -16,8 +16,8 @@ class Wholebody:
         providers = (
             ["CPUExecutionProvider"] if device == "cpu" else ["CUDAExecutionProvider"]
         )
-        onnx_det = ModelDataPathPrefix.joinpath("DWPose/yolox_l.onnx")
-        onnx_pose = ModelDataPathPrefix.joinpath("DWPose/dw-ll_ucoco_384.onnx")
+        onnx_det = CKPT_DIR.joinpath("DWPose/yolox_l.onnx")
+        onnx_pose = CKPT_DIR.joinpath("DWPose/dw-ll_ucoco_384.onnx")
 
         self.session_det = ort.InferenceSession(
             path_or_bytes=onnx_det, providers=providers

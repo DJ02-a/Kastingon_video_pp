@@ -55,7 +55,6 @@ def save_videos_from_pil(pil_images, path, fps=8):
     save_fmt = Path(path).suffix
     os.makedirs(os.path.dirname(path), exist_ok=True)
     width, height = pil_images[0].size
-
     if save_fmt == ".mp4":
         codec = "libx264"
         container = av.open(path, "w")
@@ -122,7 +121,6 @@ def read_frames(video_path):
 
 
 def read_frames_cv(video_path):
-
     # container = av.open(video_path)
 
     video_cap = cv2.VideoCapture(video_path)
@@ -132,7 +130,6 @@ def read_frames_cv(video_path):
     frames = []
     f = 0
     while success:
-
         success, frame = video_cap.read()
         # frames.append(Image.fromarray(frame))
         frames.append(frame)
