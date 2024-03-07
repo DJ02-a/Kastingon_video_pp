@@ -3,7 +3,7 @@ import glob
 import os
 import random
 import shutil
-from pathlib import Path
+import subprocess
 
 import cv2
 import numpy as np
@@ -12,7 +12,13 @@ from tqdm import tqdm
 
 from moore_preprocess.dl_models.dwpose import DWposeDetector
 from moore_preprocess.dl_models.VideoMatting import RobudstVideoMatting
-from moore_preprocess.utils.util import get_fps, read_frames_cv, save_videos_from_pil
+from moore_preprocess.utils.util import (
+    get_fps,
+    get_grid_video,
+    read_frames_cv,
+    save_videos_from_pil,
+    sharpening_filter,
+)
 
 
 def process_single_video(
@@ -25,7 +31,9 @@ def process_single_video(
     folder_name = video_path.split("/")[-2]
     video_name = os.path.basename(video_path).split(".")[0]
     if folder_name != "video":
-        workspace_dir = os.path.join(save_dir, f"{folder_name}_{video_name}")
+        workspace_dir = os.path.join(
+            save_dir, f"{folder_name}_{video_name}_sm{str(args.smooth)[0]}"
+        )
         dataset_folder_name = f"{folder_name}/{video_name}"
     else:
         workspace_dir = os.path.join(save_dir, video_name)
@@ -34,10 +42,14 @@ def process_single_video(
     openpose_path = os.path.join(workspace_dir, "dwpose")
     simple_name = "simple"
     simple_openpose_path = os.path.join(workspace_dir, f"dwpose_{simple_name}")
+    simple_openpose_woface_path = os.path.join(
+        workspace_dir, f"dwpose_woface_{simple_name}"
+    )
     video_save_path = os.path.join(workspace_dir, "videos")
     os.makedirs(frame_path, exist_ok=True)
     os.makedirs(openpose_path, exist_ok=True)
     os.makedirs(simple_openpose_path, exist_ok=True)
+    os.makedirs(simple_openpose_woface_path, exist_ok=True)
     os.makedirs(video_save_path, exist_ok=True)
 
     if os.path.exists(
@@ -53,6 +65,7 @@ def process_single_video(
 
     kps_results = []
     kps_results_sp = []
+    kps_results_sp_woface = []
     # if fps>40, then we can skip some frames
     if fps > 40:
         interval = 2
@@ -65,8 +78,11 @@ def process_single_video(
     frames = frames[::interval][:-1]
     os.makedirs(frame_path, exist_ok=True)
     print("PROCESS : SAVE FRAMES")
+    filter_frames = []
     for i, origin_frame in tqdm(enumerate(frames)):
-        cv2.imwrite(os.path.join(frame_path, f"{i:05d}.jpg"), origin_frame)
+        filter_frame = cv2.filter2D(origin_frame, -1, sharpening_filter)
+        cv2.imwrite(os.path.join(frame_path, f"{i:05d}.jpg"), filter_frame)
+        filter_frames.append(filter_frame)
 
     if args.matte_video:
         print("PROCESS : VIDEO MATTING")
@@ -105,8 +121,8 @@ def process_single_video(
 
     print("PROCESS : DWPOSE")
     if not args.smooth:
-        for i, frame in tqdm(enumerate(matte_frames)):
-            result, result_sp, _, _ = detector(
+        for i, frame in tqdm(enumerate(frames)):
+            result, result_sp, result_sp_woface, _, _ = detector(
                 frame,
                 simple=args.simple,
                 sp_draw_hand=args.sp_draw_hand,
@@ -116,24 +132,30 @@ def process_single_video(
 
             kps_results.append(result)
             kps_results_sp.append(result_sp)
-
+            kps_results_sp_woface.append(result_sp_woface)
             result.save(os.path.join(openpose_path, f"{i:05d}.jpg"))
             result_sp.save(os.path.join(simple_openpose_path, f"{i:05d}.jpg"))
-
+            result_sp_woface.save(
+                os.path.join(simple_openpose_woface_path, f"{i:05d}.jpg")
+            )
     else:
-        result, result_sp, _ = detector.get_batched_pose(
-            matte_frames,
+        result, result_sp, result_sp_woface, _ = detector.get_batched_pose(
+            frames,
             simple=args.simple,
             smooth=args.smooth,
             sp_draw_hand=args.sp_draw_hand,
             sp_draw_face=args.sp_draw_face,
             sp_wo_hand_kpts=args.sp_wo_hand_kpts,
         )
-        for i, (r, r_sp) in enumerate(zip(result, result_sp)):
+        for i, (r, r_sp, r_sp_woface) in enumerate(
+            zip(result, result_sp, result_sp_woface)
+        ):
             kps_results.append(r)
             kps_results_sp.append(r_sp)
+            kps_results_sp_woface.append(r_sp_woface)
             r.save(os.path.join(openpose_path, f"{i:05d}.jpg"))
-            r_sp.save(os.path.join(simple_openpose_path), f"{i:05d}.jpg")
+            r_sp.save(os.path.join(simple_openpose_path, f"{i:05d}.jpg"))
+            r_sp_woface.save(os.path.join(simple_openpose_woface_path, f"{i:05d}.jpg"))
 
     save_videos_from_pil(
         kps_results,
@@ -142,17 +164,25 @@ def process_single_video(
     )
     save_videos_from_pil(
         kps_results_sp,
-        os.path.join(video_save_path, "openpose_simple.mp4"),
+        os.path.join(video_save_path, "openpose_wo_face_handkpt.mp4"),
+        fps=new_fps,
+    )
+    save_videos_from_pil(
+        kps_results_sp_woface,
+        os.path.join(video_save_path, "openpose_wo_face.mp4"),
         fps=new_fps,
     )
     shutil.copy(video_path, os.path.join(video_save_path, "origin.mp4"))
-    shutil.copytree(
-        video_save_path,
-        os.path.join(args.dataset_dir, f"{dataset_folder_name}"),
-        dirs_exist_ok=True,
+    get_grid_video(
+        frames, kps_results, new_fps, os.path.join(video_save_path, "grid.mp4")
     )
-    if args.remove_legacy:
-        shutil.rmtree(workspace_dir)
+    # if args.remove_legacy:
+    #     shutil.rmtree(workspace_dir)
+    #     shutil.copytree(
+    #         video_save_path,
+    #         os.path.join(args.dataset_dir, f"{dataset_folder_name}"),
+    #         dirs_exist_ok=True,
+    #     )
 
 
 def process_batch_videos(video_list, detector, videomatter, args, root_dir):
@@ -173,7 +203,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--video_root",
         type=str,
-        default="./assets/video",
+        default="./assets/video/9x9",
     )
     parser.add_argument(
         "--save_dir",
@@ -188,15 +218,14 @@ if __name__ == "__main__":
     )
     parser.add_argument("--smooth", default=True)
     parser.add_argument("--simple", default=True)
-    parser.add_argument("--num_workers", type=int, default=2, help="Num workers")
+    parser.add_argument("--num_workers", type=int, default=1)
     parser.add_argument("--matte_video", default=True)
-    parser.add_argument("--remove_legacy", default=True)
+    parser.add_argument("--remove_legacy", default=False)
 
     parser.add_argument("--sp_wo_hand_kpts", default=True)
     parser.add_argument("--sp_draw_hand", default=True)
     parser.add_argument("--sp_draw_face", default=True)
     args = parser.parse_args()
-
     save_dir = args.save_dir
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)

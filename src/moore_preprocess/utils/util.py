@@ -13,6 +13,16 @@ import torchvision
 from einops import rearrange
 from PIL import Image
 
+sharpening_filter = np.array(
+    [
+        [-1 / 32, -1 / 32, -1 / 32, -1 / 32, -1 / 32],
+        [-1 / 32, -1 / 16, -1 / 16, -1 / 16, -1 / 32],
+        [-1 / 32, -1 / 16, 2, -1 / 16, -1 / 32],
+        [-1 / 32, -1 / 16, -1 / 16, -1 / 16, -1 / 32],
+        [-1 / 32, -1 / 32, -1 / 32, -1 / 32, -1 / 32],
+    ]
+)
+
 
 def seed_everything(seed):
     import random
@@ -21,7 +31,7 @@ def seed_everything(seed):
 
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
-    np.random.seed(seed % (2 ** 32))
+    np.random.seed(seed % (2**32))
     random.seed(seed)
 
 
@@ -144,3 +154,19 @@ def get_fps(video_path):
     fps = video_stream.average_rate
     container.close()
     return fps
+
+
+def get_grid_video(video_1_frames, video_2_pil_frames, fps, save_path):
+    h, w, _ = video_1_frames[0].shape
+
+    # video set
+    fourcc = cv2.VideoWriter_fourcc("m", "p", "4", "v")
+    out = cv2.VideoWriter("output2.mp4", fourcc, fps, (w * 2, h))
+    for video_1_frames, video_2_frames in zip(video_1_frames, video_2_pil_frames):
+        video_1_frames = cv2.resize(video_1_frames, (w, h))
+        video_2_frames = cv2.resize(np.array(video_2_frames)[:, :, ::-1], (w, h))
+        frame = np.concatenate([video_1_frames, video_2_frames], axis=1)
+        cv2.imwrite(save_path, frame)
+        out.write(frame)
+    out.release()
+    cv2.destroyAllWindows()
