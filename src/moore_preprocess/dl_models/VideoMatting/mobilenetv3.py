@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from torchvision.models.mobilenetv3 import MobileNetV3, InvertedResidualConfig
+from torchvision.models.mobilenetv3 import InvertedResidualConfig, MobileNetV3
 from torchvision.transforms.functional import normalize
 
 

@@ -26,18 +26,15 @@ def process_single_video(
     detector,
     matter,
     args,
-    save_dir,
 ):
+    # set_directory
     folder_name = video_path.split("/")[-2]
     video_name = os.path.basename(video_path).split(".")[0]
     if folder_name != "video":
-        workspace_dir = os.path.join(
-            save_dir, f"{folder_name}_{video_name}_sm{str(args.smooth)[0]}"
-        )
-        dataset_folder_name = f"{folder_name}/{video_name}"
+        workspace_folder_name = f"{folder_name}_{video_name}_sm{str(args.smooth)[0]}"
     else:
-        workspace_dir = os.path.join(save_dir, video_name)
-        dataset_folder_name = f"{video_name}"
+        workspace_folder_name = video_name
+    workspace_dir = os.path.join(args.save_dir, workspace_folder_name)
     frame_path = os.path.join(workspace_dir, "frames")
     openpose_path = os.path.join(workspace_dir, "dwpose")
     simple_name = "simple"
@@ -46,16 +43,13 @@ def process_single_video(
         workspace_dir, f"dwpose_woface_{simple_name}"
     )
     video_save_path = os.path.join(workspace_dir, "videos")
+    grid_video_save_path = os.path.join(args.save_dir, "grid_videos")
     os.makedirs(frame_path, exist_ok=True)
     os.makedirs(openpose_path, exist_ok=True)
     os.makedirs(simple_openpose_path, exist_ok=True)
     os.makedirs(simple_openpose_woface_path, exist_ok=True)
     os.makedirs(video_save_path, exist_ok=True)
-
-    if os.path.exists(
-        os.path.join(args.dataset_dir, dataset_folder_name, "origin.mp4")
-    ):
-        return
+    os.makedirs(grid_video_save_path, exist_ok=True)
 
     fps = get_fps(video_path)
 
@@ -174,41 +168,33 @@ def process_single_video(
     )
     shutil.copy(video_path, os.path.join(video_save_path, "origin.mp4"))
     get_grid_video(
-        frames, kps_results, new_fps, os.path.join(video_save_path, "grid.mp4")
+        frames,
+        kps_results,
+        new_fps,
+        os.path.join(grid_video_save_path, f"{workspace_folder_name}.mp4"),
     )
-    # if args.remove_legacy:
-    #     shutil.rmtree(workspace_dir)
-    #     shutil.copytree(
-    #         video_save_path,
-    #         os.path.join(args.dataset_dir, f"{dataset_folder_name}"),
-    #         dirs_exist_ok=True,
-    #     )
 
 
-def process_batch_videos(video_list, detector, videomatter, args, root_dir):
+def process_batch_videos(video_list, detector, videomatter, args):
     print("Normal mode")
     for i, video_path in enumerate(video_list):
         print(f"Process {i}/{len(video_list)} video")
-        process_single_video(video_path, detector, videomatter, args, root_dir)
+        process_single_video(video_path, detector, videomatter, args)
 
 
 if __name__ == "__main__":
-    # -----
-    # NOTE:
-    # python tools/extract_dwpose_from_vid.py --video_root /path/to/video_dir
-    # -----
     import argparse
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--video_root",
         type=str,
-        default="./assets/video/9x9",
+        default="./assets/video",
     )
     parser.add_argument(
         "--save_dir",
         type=str,
-        default="./assets/output",
+        default="./assets/output_test",
         help="Path to save extracted pose videos",
     )
     parser.add_argument(
@@ -218,7 +204,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--smooth", default=True)
     parser.add_argument("--simple", default=True)
-    parser.add_argument("--num_workers", type=int, default=1)
+    parser.add_argument("--num_workers", type=int, default=2)
     parser.add_argument("--matte_video", default=True)
     parser.add_argument("--remove_legacy", default=False)
 
@@ -226,9 +212,6 @@ if __name__ == "__main__":
     parser.add_argument("--sp_draw_hand", default=True)
     parser.add_argument("--sp_draw_face", default=True)
     args = parser.parse_args()
-    save_dir = args.save_dir
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
     cuda_visible_devices = os.environ.get("CUDA_VISIBLE_DEVICES", "0")
     gpu_ids = [int(id) for id in range(len(cuda_visible_devices.split(",")))]
     print(f"avaliable gpu ids: {gpu_ids}")
@@ -264,12 +247,7 @@ if __name__ == "__main__":
 
             futures.append(
                 executor.submit(
-                    process_batch_videos,
-                    chunk,
-                    detector,
-                    videomatter,
-                    args,
-                    save_dir,
+                    process_batch_videos, chunk, detector, videomatter, args
                 )
             )
         for future in concurrent.futures.as_completed(futures):

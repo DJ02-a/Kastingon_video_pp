@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from torchvision.models.resnet import ResNet, Bottleneck
+from torchvision.models.resnet import Bottleneck, ResNet
 
 
 class ResNet50Encoder(ResNet):

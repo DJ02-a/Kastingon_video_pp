@@ -161,12 +161,11 @@ def get_grid_video(video_1_frames, video_2_pil_frames, fps, save_path):
 
     # video set
     fourcc = cv2.VideoWriter_fourcc("m", "p", "4", "v")
-    out = cv2.VideoWriter("output2.mp4", fourcc, fps, (w * 2, h))
+    out = cv2.VideoWriter(save_path, fourcc, fps, (w * 2, h))
     for video_1_frames, video_2_frames in zip(video_1_frames, video_2_pil_frames):
         video_1_frames = cv2.resize(video_1_frames, (w, h))
         video_2_frames = cv2.resize(np.array(video_2_frames)[:, :, ::-1], (w, h))
         frame = np.concatenate([video_1_frames, video_2_frames], axis=1)
-        cv2.imwrite(save_path, frame)
         out.write(frame)
     out.release()
     cv2.destroyAllWindows()

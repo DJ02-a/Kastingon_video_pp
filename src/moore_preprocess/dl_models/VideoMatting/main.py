@@ -140,7 +140,6 @@ class RobudstVideoMatting(nn.Module):
                 bar = tqdm(total=len(source), disable=not progress, dynamic_ncols=True)
                 rec = [None] * 4
                 for src in reader:
-
                     if downsample_ratio is None:
                         downsample_ratio = self._auto_downsample_ratio(*src.shape[2:])
 

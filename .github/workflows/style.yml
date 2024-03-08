@@ -1,0 +1,68 @@
+name: Style checking
+
+on: [push, pull_request]
+
+jobs:
+  black:
+    name: Black
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+      - name: Install black and requirements
+        run: |
+          pip3 install black==23.9.1
+      - name: Run black
+        run: |
+          set +e  # Do not exit shell on black failure
+          out=$(black --check --diff . 2> black_stderr.txt)
+          exit_code=$?
+          err=$(<black_stderr.txt)
+
+          # Display the raw output in the step
+          echo "${out}"
+          echo "${err}"
+
+          # Display the Markdown output in the job summary
+          echo "\`\`\`diff" >> $GITHUB_STEP_SUMMARY
+          echo "${out}" >> $GITHUB_STEP_SUMMARY
+          echo "${err}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+          # Exit with the exit-code returned by black
+          exit ${exit_code}
+
+  isort:
+    name: isort
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+      - name: Install isort and requirements
+        run: |
+          pip3 install isort==5.12.0  # NOTE: requirements_dev.txt may install isort with another version
+      - name: Run isort
+        run: |
+          set +e  # Do not exit shell on isort failure
+          out=$(isort --check-only --diff . 2> isort_stderr.txt)
+          exit_code=$?
+          err=$(<isort_stderr.txt)
+
+          # Display the raw output in the step
+          echo "${out}"
+          echo "${err}"
+
+          # Display the Markdown output in the job summary
+          echo "\`\`\`diff" >> $GITHUB_STEP_SUMMARY
+          echo "${out}" >> $GITHUB_STEP_SUMMARY
+          echo "${err}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+          # Exit with the exit-code returned by isort
+          exit ${exit_code}
