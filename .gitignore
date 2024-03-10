@@ -1,4 +1,5 @@
 assets/
+.python-version
 __pycache__
 pretrained_weights/
 dist/
