@@ -6,40 +6,6 @@ from huggingface_hub import hf_hub_download
 from moore_preprocess import CKPT_DIR
 
 
-def prepare_base_model():
-    print(f"Preparing base stable-diffusion-v1-5 weights...")
-    local_dir = CKPT_DIR / "stable-diffusion-v1-5"
-    os.makedirs(local_dir, exist_ok=True)
-    for hub_file in ["unet/config.json", "unet/diffusion_pytorch_model.bin"]:
-        path = Path(hub_file)
-        saved_path = local_dir / path
-        if os.path.exists(saved_path):
-            continue
-        hf_hub_download(
-            repo_id="runwayml/stable-diffusion-v1-5",
-            subfolder=PurePosixPath(path.parent),
-            filename=PurePosixPath(path.name),
-            local_dir=local_dir,
-        )
-
-
-def prepare_image_encoder():
-    print(f"Preparing image encoder weights...")
-    local_dir = CKPT_DIR
-    os.makedirs(local_dir, exist_ok=True)
-    for hub_file in ["image_encoder/config.json", "image_encoder/pytorch_model.bin"]:
-        path = Path(hub_file)
-        saved_path = local_dir / path
-        if os.path.exists(saved_path):
-            continue
-        hf_hub_download(
-            repo_id="lambdalabs/sd-image-variations-diffusers",
-            subfolder=PurePosixPath(path.parent),
-            filename=PurePosixPath(path.name),
-            local_dir=local_dir,
-        )
-
-
 def prepare_dwpose():
     print(f"Preparing DWPose weights...")
     local_dir = CKPT_DIR / "DWPose"
@@ -61,13 +27,12 @@ def prepare_dwpose():
         )
 
 
-def prepare_vae():
-    print(f"Preparing vae weights...")
-    local_dir = CKPT_DIR / "sd-vae-ft-mse"
+def prepare_RVM():
+    print(f"Preparing DWPose weights...")
+    local_dir = CKPT_DIR / "VideoMatting"
     os.makedirs(local_dir, exist_ok=True)
     for hub_file in [
-        "config.json",
-        "diffusion_pytorch_model.bin",
+        "rvm_mobilenetv3.pth",
     ]:
         path = Path(hub_file)
         saved_path = local_dir / path
@@ -75,30 +40,7 @@ def prepare_vae():
             continue
 
         hf_hub_download(
-            repo_id="stabilityai/sd-vae-ft-mse",
-            subfolder=PurePosixPath(path.parent),
-            filename=PurePosixPath(path.name),
-            local_dir=local_dir,
-        )
-
-
-def prepare_anyone():
-    print(f"Preparing AnimateAnyone weights...")
-    local_dir = CKPT_DIR
-    os.makedirs(local_dir, exist_ok=True)
-    for hub_file in [
-        "denoising_unet.pth",
-        "motion_module.pth",
-        "pose_guider.pth",
-        "reference_unet.pth",
-    ]:
-        path = Path(hub_file)
-        saved_path = local_dir / path
-        if os.path.exists(saved_path):
-            continue
-
-        hf_hub_download(
-            repo_id="patrolli/AnimateAnyone",
+            repo_id="DJ02-a/video_matting_RVM",
             subfolder=PurePosixPath(path.parent),
             filename=PurePosixPath(path.name),
             local_dir=local_dir,
@@ -107,3 +49,4 @@ def prepare_anyone():
 
 if __name__ == "__main__":
     prepare_dwpose()
+    prepare_RVM()
