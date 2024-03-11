@@ -212,6 +212,7 @@ if __name__ == "__main__":
     parser.add_argument("--sp_draw_hand", default=True)
     parser.add_argument("--sp_draw_face", default=True)
     args = parser.parse_args()
+
     cuda_visible_devices = os.environ.get("CUDA_VISIBLE_DEVICES", "0")
     gpu_ids = [int(id) for id in range(len(cuda_visible_devices.split(",")))]
     print(f"avaliable gpu ids: {gpu_ids}")
