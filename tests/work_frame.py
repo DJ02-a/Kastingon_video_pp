@@ -13,18 +13,19 @@ from moore_preprocess.utils.util import sharpening_filter
 
 
 def process_single_video(
-    frame_path,
+    video_info,
     detector,
     matter,
     args,
 ):
     # set_directory
-    video_name, clip_num = frame_path
+    video_name, clip_num = video_info
     workspace_folder_name = (
         f"{video_name}_{str(clip_num).zfill(3)}_sm{str(args.smooth)[0]}"
     )
     workspace_dir = os.path.join(args.save_dir, workspace_folder_name)
     frame_path = os.path.join(workspace_dir, "frames")
+    sharp_frame_path = os.path.join(workspace_dir, "sharp_frames")
     openpose_path = os.path.join(workspace_dir, "dwpose")
     simple_name = "simple"
     simple_openpose_path = os.path.join(workspace_dir, f"dwpose_{simple_name}")
@@ -32,6 +33,7 @@ def process_single_video(
         workspace_dir, f"dwpose_woface_{simple_name}"
     )
     os.makedirs(frame_path, exist_ok=True)
+    os.makedirs(sharp_frame_path, exist_ok=True)
     os.makedirs(openpose_path, exist_ok=True)
     os.makedirs(simple_openpose_path, exist_ok=True)
     os.makedirs(simple_openpose_woface_path, exist_ok=True)
@@ -53,7 +55,8 @@ def process_single_video(
     filter_frames = []
     for i, origin_frame in tqdm(enumerate(frames)):
         filter_frame = cv2.filter2D(origin_frame, -1, sharpening_filter)
-        cv2.imwrite(os.path.join(frame_path, f"{i:05d}.jpg"), filter_frame)
+        cv2.imwrite(os.path.join(frame_path, f"{i:05d}.jpg"), origin_frame)
+        cv2.imwrite(os.path.join(sharp_frame_path, f"{i:05d}.jpg"), filter_frame)
         filter_frames.append(filter_frame)
 
     if args.matte_video:
