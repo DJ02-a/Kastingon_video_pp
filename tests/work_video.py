@@ -3,7 +3,6 @@ import glob
 import os
 import random
 import shutil
-import subprocess
 
 import cv2
 import numpy as np
@@ -31,25 +30,17 @@ def process_single_video(
     folder_name = video_path.split("/")[-2]
     video_name = os.path.basename(video_path).split(".")[0]
     if folder_name != "video":
-        workspace_folder_name = f"{folder_name}_{video_name}_sm{str(args.smooth)[0]}"
+        workspace_folder_name = f"{folder_name}_{video_name}"
     else:
         workspace_folder_name = video_name
     workspace_dir = os.path.join(args.save_dir, workspace_folder_name)
     frame_path = os.path.join(workspace_dir, "frames")
-    sharp_frame_path = os.path.join(workspace_dir, "sharp_frames")
-    openpose_path = os.path.join(workspace_dir, "dwpose")
-    simple_name = "simple"
-    simple_openpose_path = os.path.join(workspace_dir, f"dwpose_{simple_name}")
-    simple_openpose_woface_path = os.path.join(
-        workspace_dir, f"dwpose_woface_{simple_name}"
-    )
+    simple_openpose_path = os.path.join(workspace_dir, f"dwpose_simple")
     video_save_path = os.path.join(workspace_dir, "videos")
     grid_video_save_path = os.path.join(args.save_dir, "grid_videos")
+
     os.makedirs(frame_path, exist_ok=True)
-    os.makedirs(sharp_frame_path, exist_ok=True)
-    os.makedirs(openpose_path, exist_ok=True)
     os.makedirs(simple_openpose_path, exist_ok=True)
-    os.makedirs(simple_openpose_woface_path, exist_ok=True)
     os.makedirs(video_save_path, exist_ok=True)
     os.makedirs(grid_video_save_path, exist_ok=True)
 
@@ -59,9 +50,6 @@ def process_single_video(
 
     print("INFO:", video_name, "fps:", fps, "num_frames:", len(frames))
 
-    kps_results = []
-    kps_results_sp = []
-    kps_results_sp_woface = []
     # if fps>40, then we can skip some frames
     if fps > 40:
         interval = 2
@@ -72,23 +60,23 @@ def process_single_video(
         new_fps = int(round(fps))
 
     frames = frames[::interval][:-1]
+    kps_results_sp = []
+
     os.makedirs(frame_path, exist_ok=True)
     print("PROCESS : SAVE FRAMES")
     filter_frames = []
     for i, origin_frame in tqdm(enumerate(frames)):
         filter_frame = cv2.filter2D(origin_frame, -1, sharpening_filter)
         cv2.imwrite(os.path.join(frame_path, f"{i:05d}.jpg"), origin_frame)
-        cv2.imwrite(os.path.join(sharp_frame_path, f"{i:05d}.jpg"), filter_frame)
         filter_frames.append(filter_frame)
 
     if args.matte_video:
         print("PROCESS : VIDEO MATTING")
 
-        matte_frame_path = os.path.join(workspace_dir, "matte_frames")
-        os.makedirs(matte_frame_path, exist_ok=True)
         matte_path = os.path.join(workspace_dir, "matte")
+        matte_frame_path = os.path.join(workspace_dir, "matte_frames")
         os.makedirs(matte_path, exist_ok=True)
-
+        os.makedirs(matte_frame_path, exist_ok=True)
         matter(
             frame_path,
             output_type="png_sequence",
@@ -98,7 +86,7 @@ def process_single_video(
             num_workers=4,
         )
         matte_frames = []
-        alpha_paths = sorted(glob.glob(matte_path + "/*.jpg"))
+        alpha_paths = sorted(glob.glob(matte_path + "/*.png"))
         for frame, alpha_path in zip(frames, alpha_paths):
             file_name = os.path.basename(alpha_path).split(".")[0]
             alpha = cv2.imread(alpha_path) / 255
@@ -119,60 +107,34 @@ def process_single_video(
     print("PROCESS : DWPOSE")
     if not args.smooth:
         for i, frame in tqdm(enumerate(frames)):
-            result, result_sp, result_sp_woface, _, _ = detector(
+            _, result_sp, _, _ = detector(
                 frame,
                 simple=args.simple,
-                sp_draw_hand=args.sp_draw_hand,
-                sp_draw_face=args.sp_draw_face,
-                sp_wo_hand_kpts=args.sp_wo_hand_kpts,
             )
 
-            kps_results.append(result)
             kps_results_sp.append(result_sp)
-            kps_results_sp_woface.append(result_sp_woface)
-            result.save(os.path.join(openpose_path, f"{i:05d}.jpg"))
             result_sp.save(os.path.join(simple_openpose_path, f"{i:05d}.jpg"))
-            result_sp_woface.save(
-                os.path.join(simple_openpose_woface_path, f"{i:05d}.jpg")
-            )
     else:
-        result, result_sp, result_sp_woface, _ = detector.get_batched_pose(
+        _, result_sp, _ = detector.get_batched_pose(
             frames,
             simple=args.simple,
             smooth=args.smooth,
-            sp_draw_hand=args.sp_draw_hand,
-            sp_draw_face=args.sp_draw_face,
-            sp_wo_hand_kpts=args.sp_wo_hand_kpts,
+            savgol_window_len=args.savgol_window_len,
         )
-        for i, (r, r_sp, r_sp_woface) in enumerate(
-            zip(result, result_sp, result_sp_woface)
-        ):
-            kps_results.append(r)
+        for i, r_sp in enumerate(result_sp):
             kps_results_sp.append(r_sp)
-            kps_results_sp_woface.append(r_sp_woface)
-            r.save(os.path.join(openpose_path, f"{i:05d}.jpg"))
             r_sp.save(os.path.join(simple_openpose_path, f"{i:05d}.jpg"))
-            r_sp_woface.save(os.path.join(simple_openpose_woface_path, f"{i:05d}.jpg"))
 
-    save_videos_from_pil(
-        kps_results,
-        os.path.join(video_save_path, "openpose_full.mp4"),
-        fps=new_fps,
-    )
     save_videos_from_pil(
         kps_results_sp,
         os.path.join(video_save_path, "openpose_wo_face_handkpt.mp4"),
         fps=new_fps,
     )
-    save_videos_from_pil(
-        kps_results_sp_woface,
-        os.path.join(video_save_path, "openpose_wo_face.mp4"),
-        fps=new_fps,
-    )
+
     shutil.copy(video_path, os.path.join(video_save_path, "origin.mp4"))
     get_grid_video(
         frames,
-        kps_results,
+        kps_results_sp,
         new_fps,
         os.path.join(grid_video_save_path, f"{workspace_folder_name}.mp4"),
     )
@@ -197,23 +159,19 @@ if __name__ == "__main__":
     parser.add_argument(
         "--save_dir",
         type=str,
-        default="./assets/output_test",
+        default="./assets/output_video",
         help="Path to save extracted pose videos",
     )
-    parser.add_argument(
-        "--dataset_dir",
-        type=str,
-        default="./assets/dataset",
-    )
-    parser.add_argument("--smooth", default=True)
-    parser.add_argument("--simple", default=True)
+    parser.add_argument("--smooth", type=bool, default=True)
+    parser.add_argument("--savgol_window_len", type=int, default=15)
+    parser.add_argument("--simple", type=bool, default=True)
     parser.add_argument("--num_workers", type=int, default=2)
-    parser.add_argument("--matte_video", default=True)
-    parser.add_argument("--remove_legacy", default=False)
-
-    parser.add_argument("--sp_wo_hand_kpts", default=True)
-    parser.add_argument("--sp_draw_hand", default=True)
-    parser.add_argument("--sp_draw_face", default=True)
+    parser.add_argument("--matte_video", type=bool, default=True)
+    parser.add_argument("--remove_legacy", type=bool, default=False)
+    parser.add_argument("--sp_wo_hand_kpts", type=bool, default=True)
+    parser.add_argument("--sp_draw_hand", type=bool, default=True)
+    parser.add_argument("--sp_draw_face", type=bool, default=True)
+    parser.add_argument("--crop_result", type=bool, default=True)
     args = parser.parse_args()
 
     cuda_visible_devices = os.environ.get("CUDA_VISIBLE_DEVICES", "0")

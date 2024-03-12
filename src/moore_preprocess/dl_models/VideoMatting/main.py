@@ -115,11 +115,11 @@ class RobudstVideoMatting(nn.Module):
                 )
         else:
             if output_composition is not None:
-                writer_com = ImageSequenceWriter(output_composition, "jpg")
+                writer_com = ImageSequenceWriter(output_composition, "png")
             if output_alpha is not None:
-                writer_pha = ImageSequenceWriter(output_alpha, "jpg")
+                writer_pha = ImageSequenceWriter(output_alpha, "png")
             if output_foreground is not None:
-                writer_fgr = ImageSequenceWriter(output_foreground, "jpg")
+                writer_fgr = ImageSequenceWriter(output_foreground, "png")
 
         # Inference
 
