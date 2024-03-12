@@ -109,9 +109,7 @@ class DWposeDetector:
         output_type="pil",
         smooth=True,
         simple=True,
-        sp_draw_hand=True,
-        sp_draw_face=True,
-        sp_wo_hand_kpts=True,
+        savgol_window_len=15,
         **kwargs,
     ):
         candidate_list = []
@@ -164,10 +162,10 @@ class DWposeDetector:
         cand2 = candidate_list[:, :, 1]
 
         if smooth:
-            cand1 = savgol_filter(candidate_list[:, :, 0], 15, 3, axis=0)
-            cand2 = savgol_filter(candidate_list[:, :, 1], 15, 3, axis=0)
-            # cand1 = gaussian_filter1d(candidate_list[:, :, 0], sigma=3.0, axis=0)
-            # cand2 = gaussian_filter1d(candidate_list[:, :, 1], sigma=3.0, axis=0)
+            # cand1 = savgol_filter(candidate_list[:, :, 0], savgol_window_len, 3, axis=0)
+            # cand2 = savgol_filter(candidate_list[:, :, 1], savgol_window_len, 3, axis=0)
+            cand1 = gaussian_filter1d(candidate_list[:, :, 0], sigma=1.0, axis=0)
+            cand2 = gaussian_filter1d(candidate_list[:, :, 1], sigma=1.0, axis=0)
 
         candidate_list_smoothed = np.stack([cand1, cand2], axis=-1)
 
@@ -177,8 +175,6 @@ class DWposeDetector:
 
         detected_map_list = []
         detected_map_sp_list = []
-        detected_map_sp_woface_list = []
-
         for i in range(len(candidate_list_smoothed)):
             candidate = candidate_list_smoothed[[i], ...]
 
@@ -207,25 +203,13 @@ class DWposeDetector:
                     pose_sp,
                     H,
                     W,
-                    draw_hand=sp_draw_hand,
+                    draw_hand=True,
                     draw_face=True,
-                    wo_hand_kpts=sp_wo_hand_kpts,
-                )
-
-                faces_sp = faces
-                pose_sp = dict(bodies=bodies, hands=hands, faces=faces_sp)
-                detected_map_sp_woface = draw_pose_w_option(
-                    pose_sp,
-                    H,
-                    W,
-                    draw_hand=sp_draw_hand,
-                    draw_face=False,
-                    wo_hand_kpts=sp_wo_hand_kpts,
+                    wo_hand_kpts=True,
                 )
 
             detected_map = HWC3(detected_map)
             detected_map_sp = HWC3(detected_map_sp)
-            detected_map_sp_woface = HWC3(detected_map_sp_woface)
 
             img = resize_image(input_image, image_resolution)
             H, W, C = img.shape
@@ -238,21 +222,15 @@ class DWposeDetector:
                 detected_map_sp, (W, H), interpolation=cv2.INTER_LINEAR
             )
 
-            detected_map_sp_woface = cv2.resize(
-                detected_map_sp_woface, (W, H), interpolation=cv2.INTER_LINEAR
-            )
             if output_type == "pil":
                 detected_map = Image.fromarray(detected_map)
                 detected_map_sp = Image.fromarray(detected_map_sp)
-                detected_map_sp_woface = Image.fromarray(detected_map_sp_woface)
 
             detected_map_list.append(detected_map)
             detected_map_sp_list.append(detected_map_sp)
-            detected_map_sp_woface_list.append(detected_map_sp_woface)
         return (
             detected_map_list,
             detected_map_sp_list,
-            detected_map_sp_woface_list,
             input_image_list,
         )
 
@@ -263,9 +241,6 @@ class DWposeDetector:
         image_resolution=512,
         output_type="pil",
         simple=True,
-        sp_draw_hand=True,
-        sp_draw_face=True,
-        sp_wo_hand_kpts=True,
         **kwargs,
     ):
         input_image = cv2.cvtColor(
@@ -334,34 +309,20 @@ class DWposeDetector:
                     pose_sp,
                     H,
                     W,
-                    draw_hand=sp_draw_hand,
+                    draw_hand=True,
                     draw_face=True,
-                    wo_hand_kpts=sp_wo_hand_kpts,
+                    wo_hand_kpts=True,
                 )
 
                 detected_map_sp = cv2.resize(
                     detected_map_sp, (W, H), interpolation=cv2.INTER_LINEAR
                 )
 
-                detected_map_sp_woface = draw_pose_w_option(
-                    pose_sp,
-                    H,
-                    W,
-                    draw_hand=sp_draw_hand,
-                    draw_face=False,
-                    wo_hand_kpts=sp_wo_hand_kpts,
-                )
-
-                detected_map_sp_woface = cv2.resize(
-                    detected_map_sp_woface, (W, H), interpolation=cv2.INTER_LINEAR
-                )
                 if output_type == "pil":
                     detected_map_sp = Image.fromarray(detected_map_sp)
-                    detected_map_sp_woface = Image.fromarray(detected_map_sp_woface)
 
             else:
                 detected_map_sp = None
-                detected_map_sp_woface = None
 
             # input_image = cv2.cvtColor(input_image, cv2.COLOR_BGR2RGB)
             input_img = Image.fromarray(input_image)
@@ -369,7 +330,6 @@ class DWposeDetector:
             return (
                 detected_map,
                 detected_map_sp,
-                detected_map_sp_woface,
                 input_img,
                 body_score,
             )

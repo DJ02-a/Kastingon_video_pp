@@ -1,11 +1,20 @@
 # Moore-AnimateAnyone_INVZ 
 
+- pyproject.toml은 cuda 11.x 버전을 기준으로 작성되었습니다.
+
+- cuda 12.x 버전일 경우 [링크](https://onnxruntime.ai/docs/install/)를 따를 것
+- 밑의 onnxruntime-gpu가 이미 설치되어 있다면 삭제 후 reinstall
+```shell
+pip install onnxruntime-gpu --extra-index-url https://aiinfra.pkgs.visualstudio.com/PublicPackages/_packaging/onnxruntime-cuda-12/pypi/simple/
+```
+
+- [onnx-runtime](https://onnxruntime.ai/docs/execution-providers/CUDA-ExecutionProvider.html#requirementsto) cuda 버전 별 호환되는 onnxruntime 버전 확인
+
 ## 0. Prepare 
 
 **Envs**
 ```shell
 Conda create -n aa python=3.11
-
 ```
 
 **Weight downloading**: 

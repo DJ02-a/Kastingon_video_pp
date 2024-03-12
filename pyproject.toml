@@ -20,6 +20,10 @@ matplotlib = "^3.8.3"
 onnxruntime = "^1.17.1"
 av = "^11.0.0"
 pims = "^0.6.1"
+mediapipe = "^0.10.11"
+onnxruntime-gpu = "^1.17.1"
+onnx = "^1.15.0"
+parmap = "^1.7.0"
 
 
 [tool.poetry.group.dev] # This part can be left out
